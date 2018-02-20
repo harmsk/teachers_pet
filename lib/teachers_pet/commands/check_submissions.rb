@@ -7,6 +7,7 @@ module TeachersPet
     option :report, required: true, banner: 'FILE', desc: "CSV file to write the submission deadlines to."
     option :file_exists, banner: 'FILE', desc: "If file exists, then the assignment was submitted."
     option :fetch, desc: "Fetch the latest from each student's repository."
+    option :team_validation, type: :boolean, default: true, desc: 'Do not check if student teams are valid.'
 
     students_option
     common_options
