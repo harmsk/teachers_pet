@@ -143,6 +143,11 @@ module TeachersPet
 
           submission[:slip_days] = slip_days(submission[:committed_at], submission[:pushed_at])
         end
+
+        # If we fetched, compress the repo
+        if self.options[:fetch] then
+          system('nice', 'git', 'gc')
+        end
       end
 
       def slip_days(committed_at, pushed_at)
