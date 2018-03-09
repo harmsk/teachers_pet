@@ -156,12 +156,16 @@ module TeachersPet
       end
 
       def slip_days(committed_at, pushed_at)
-        days_late = nil
-
         if committed_at and !pushed_at then
-          slip_days = "NOT_FOUND"
-        elsif pushed_at
-          diff = pushed_at - @deadline
+          # For some reason GitHub did not have a push event. Fall back to commit date
+          date = committed_at
+        else
+          date = pushed_at
+        end
+
+        days_late = nil
+        if date then
+          diff = date - @deadline
           days = diff / (60*60*24)
           if (days < 0) then
             days = 0
