@@ -17,14 +17,16 @@ module TeachersPet
 
         @validate_teams = self.options[:team_validation]
 
-        @file_exists = self.options[:file_exists]
-        unless @check_files.include? @file_exists then
-          @check_files.push @file_exists
+        @submit_file = self.options[:submit_file]
+        unless @check_files.include? @submit_file then
+          @check_files.push @submit_file
         end
         @check_files = @check_files.uniq
         if @check_files.empty? then
           @check_files.push '.'
         end
+
+        @ignore_commit = self.options[:ignore_commit]
       end
 
       def check_submissions
@@ -68,28 +70,31 @@ module TeachersPet
           end
 
           # Check if the submission file exists
-          if @file_exists then
-            submitted = system('git', 'cat-file', '-e', "#{remote}/master:#{@file_exists}", out: File::NULL, err: File::NULL)
-          else
-            # assume it was submitted if we aren't checking for a submission file.
-            submitted = true
+          if @submit_file then
+            submitted = system('git', 'cat-file', '-e', "#{remote}/master:#{@submit_file}", out: File::NULL, err: File::NULL)
+            submission[:submitted] = submitted
           end
 
           # Check if there were commits for required submission files
           latest = Hash.new
-          if submitted then
-            @check_files.each do |file|
-              date = `git log -1 --format='%cI' '#{remote}/master' -- '#{file}'`.strip
-              date = Time.parse(date) if date
-              commit = `git log -1 --format='%H' '#{remote}/master' -- '#{file}'`.strip
+          @check_files.each do |file|
+            date_commit = `git log -1 --format='%cI\n%H' '#{remote}/master' -- '#{file}'`.strip
+            date = date_commit.lines.first
+            commit = date_commit.lines.last
 
-              if latest[:date].nil? then
-                latest[:date] = date
-                latest[:commit] = commit
-              elsif date > latest[:date] then
-                latest[:date] = date
-                latest[:commit] = commit
-              end
+            next if date.nil?
+            date = Time.parse(date)
+            next if commit.nil?
+
+            # Do not count this submission, it it's part of the ignore commits
+            next if commit == @ignore_commit
+
+            if latest[:date].nil? then
+              latest[:date] = date
+              latest[:commit] = commit
+            elsif date > latest[:date] then
+              latest[:date] = date
+              latest[:commit] = commit
             end
           end
           submission[:commit] = latest[:commit]
@@ -170,13 +175,13 @@ module TeachersPet
 
       def write_report
         CSV.open(@report_filename, "wb") do |csv|
-          csv << ['remote', 'commit', 'committed_at', 'pushed_at', 'slip_days', 'rewrite_history']
+          csv << ['remote', 'submitted', 'commit', 'committed_at', 'pushed_at', 'slip_days', 'rewrite_history']
           @submissions.each do |remote, submission|
             date = submission[:committed_at]
             date = date.strftime('%F %T') if date
             push = submission[:pushed_at]
             push = push.strftime('%F %T') if push
-            csv << [remote, submission[:commit], date, push, submission[:slip_days], submission[:rewrite_history]]
+            csv << [remote, submission[:submitted].to_s.upcase, submission[:commit], date, push, submission[:slip_days], submission[:rewrite_history]]
           end
         end
       end

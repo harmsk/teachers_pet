@@ -5,7 +5,8 @@ module TeachersPet
 
     option :deadline, required: true, banner: 'DATE', desc: "Deadline for the submission: MM/DD/YYYY HH:MM"
     option :report, required: true, banner: 'FILE', desc: "CSV file to write the submission deadlines to."
-    option :file_exists, banner: 'FILE', desc: "If file exists, then the assignment was submitted."
+    option :submit_file, banner: 'FILE', desc: "If file exists, then the assignment was submitted."
+    option :ignore_commit, banner: 'COMMIT', desc: "Ignore COMMIT and do not count as a submission."
     option :fetch, desc: "Fetch the latest from each student's repository."
     option :team_validation, type: :boolean, default: true, desc: 'Do not check if student teams are valid.'
 
