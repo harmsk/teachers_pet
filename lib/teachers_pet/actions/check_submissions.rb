@@ -26,7 +26,7 @@ module TeachersPet
           @check_files.push '.'
         end
 
-        @ignore_commit = self.options[:ignore_commit]
+        @ignored_commits = self.options[:ignore]
       end
 
       def check_submissions
@@ -87,7 +87,7 @@ module TeachersPet
             next if commit.nil?
 
             # Do not count this submission, it it's part of the ignore commits
-            next if commit == @ignore_commit
+            next if @ignored_commits.include? commit
 
             if latest[:date].nil? then
               latest[:date] = date
