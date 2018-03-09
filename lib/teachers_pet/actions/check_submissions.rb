@@ -159,7 +159,7 @@ module TeachersPet
         days_late = nil
 
         if committed_at and !pushed_at then
-          raise "no push date"
+          slip_days = "NOT_FOUND"
         elsif pushed_at
           diff = pushed_at - @deadline
           days = diff / (60*60*24)
