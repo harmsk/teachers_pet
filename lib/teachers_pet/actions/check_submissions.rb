@@ -18,7 +18,10 @@ module TeachersPet
         @validate_teams = self.options[:team_validation]
 
         @submit_file = self.options[:submit_file]
-        unless @check_files.include? @submit_file then
+        @submit_tag = self.options[:submit_tag]
+        @check_submit = (@submit_file or @submit_tag)
+
+        if @submit_file and !(@check_files.include? @submit_file) then
           @check_files.push @submit_file
         end
         @check_files = @check_files.uniq
@@ -26,7 +29,10 @@ module TeachersPet
           @check_files.push '.'
         end
 
-        @ignored_commits = self.options[:ignore]
+        @tag_submission = self.options[:push_submission_tag]
+
+        @ignored_commits = self.options[:ignore_commits]
+        @ignored_students = self.options[:ignore_students]
       end
 
       def check_submissions
@@ -44,6 +50,10 @@ module TeachersPet
         # add it to the list.
         remotes = Array.new
         @students.keys.sort.each do |student|
+          if @ignore_students then
+            next if @ignore_students.include? student
+          end
+
           if @validate_teams
             unless org_teams.key?(student)
               puts("  ** ERROR ** - no team for #{student}")
@@ -63,22 +73,46 @@ module TeachersPet
           submission = Hash.new
           @submissions[remote] = submission
           repo_name = "#{@organization}/#{remote}-#{@repository}"
+          remote_ref = "#{remote}/master"
+          submit_tag = "remotes/#{remote}/#{@tag_submission}"
 
           # Fetch the latest changes
+          # TODO: fetch automatically if using submit_tag
           if self.options[:fetch] then
-            system('git', 'remote', 'update', remote)
+            # Get the hash of the submission tag
+            if @tag_submission then
+              unless `git tag -l #{submit_tag}`.strip.empty? then
+                tag_hash = `git log -1 --format='%H' '#{submit_tag}' --`.strip
+              end
+            end
+
+            system('git', 'fetch', '--no-tags', '--prune', remote, out: File::NULL, err: File::NULL)
+
+            # Check if the student tried to change the submission tag
+            if tag_hash then
+              hash = `git log -1 --format='%H' '#{submit_tag}' -- 2>/dev/null`.strip
+              if tag_hash != hash then
+                $stderr.puts "WARNING: #{remote} #{@tag_submission} changed"
+              end
+            end
           end
 
           # Check if the submission file exists
           if @submit_file then
-            submitted = system('git', 'cat-file', '-e', "#{remote}/master:#{@submit_file}", out: File::NULL, err: File::NULL)
+            submitted = system('git', 'cat-file', '-e', "#{remote_ref}:#{@submit_file}", out: File::NULL, err: File::NULL)
             submission[:submitted] = submitted
+          end
+
+          # Check if the submission tag exists
+          if @submit_tag then
+            # TODO: build support for submit tag
+            raise "TODO: not yet implemented."
           end
 
           # Check if there were commits for required submission files
           latest = Hash.new
           @check_files.each do |file|
-            date_commit = `git log -1 --format='%cI\n%H' '#{remote}/master' -- '#{file}'`.strip
+            date_commit = `git log -1 --format='%cI\n%H' '#{remote_ref}' -- '#{file}'`.strip
             date = date_commit.lines.first
             commit = date_commit.lines.last
 
@@ -147,11 +181,20 @@ module TeachersPet
           end
 
           submission[:slip_days] = slip_days(submission[:committed_at], submission[:pushed_at])
+
+          # If the user submitted, push a tag
+          if @tag_submission and ( (@check_submit and submission[:submitted] and submission[:commit]) or (!@check_submit and !@check_files.empty?) ) then
+            ref = submission[:commit]
+            ref = remote_ref if ref.nil?
+            if system('git', 'tag', submit_tag, ref, out: File::NULL, err: File::NULL) then
+              system('git', 'push', remote, "#{submit_tag}:#{@tag_submission}", out: File::NULL, err: File::NULL)
+            end
+          end
         end
 
         # If we fetched, compress the repo
         if self.options[:fetch] then
-          system('nice', 'git', 'gc')
+          system('nice', 'git', 'gc', out: File::NULL, err: File::NULL)
         end
       end
 

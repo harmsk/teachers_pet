@@ -45,8 +45,10 @@ module TeachersPet
         puts "Adding remotes and pushing files to student repositories."
         remotes_to_add.keys.each do |remote|
           puts "#{remote} --> #{remotes_to_add[remote]}"
-          `git remote add #{remote} #{remotes_to_add[remote]}`
-          `git push #{remote} master`
+          if system('git', 'remote', 'add', remote, remotes_to_add[remote]) then
+            system('git', 'config', '--add', "remote.#{remote}.fetch", "+refs/tags/*:refs/tags/remotes/#{remote}/*")
+          end
+          system('git', 'push', remote, 'master')
         end
       end
 
