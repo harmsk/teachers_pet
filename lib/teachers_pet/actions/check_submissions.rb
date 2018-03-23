@@ -82,17 +82,17 @@ module TeachersPet
             # Get the hash of the submission tag
             if @tag_submission then
               unless `git tag -l #{submit_tag}`.strip.empty? then
-                tag_hash = `git log -1 --format='%H' '#{submit_tag}' --`.strip
+                submit_tag_hash = `git log -1 --format='%H' '#{submit_tag}' --`.strip
               end
             end
-
-            system('git', 'fetch', '--no-tags', '--prune', remote, out: File::NULL, err: File::NULL)
+            system('git', 'fetch', '--no-tags', '--prune', remote)
 
             # Check if the student tried to change the submission tag
-            if tag_hash then
-              hash = `git log -1 --format='%H' '#{submit_tag}' -- 2>/dev/null`.strip
-              if tag_hash != hash then
-                $stderr.puts "WARNING: #{remote} #{@tag_submission} changed"
+            if submit_tag_hash then
+              hash_check = `git log -1 --format='%H' '#{submit_tag}' -- 2>/dev/null`.strip
+              if submit_tag_hash != hash_check then
+                submit_tag_hash = hash_check
+                submission[:rewrite_history] = "WARNING: #{remote} #{@tag_submission} changed #{submit_tag_hash} => #{hash_check}"
               end
             end
           end
@@ -111,24 +111,35 @@ module TeachersPet
 
           # Check if there were commits for required submission files
           latest = Hash.new
-          @check_files.each do |file|
-            date_commit = `git log -1 --format='%cI\n%H' '#{remote_ref}' -- '#{file}'`.strip
-            date = date_commit.lines.first
-            commit = date_commit.lines.last
+          if submit_tag_hash then
+            # we have a submission tag, use that for the commits
+            unless @ignored_commits.include? submit_tag_hash then
+              latest[:commit] = submit_tag_hash
+              date = `git log -1 --format='%cI' '#{submit_tag_hash}'`.strip
+              latest[:date] = Time.parse(date)
+            end
+          else
+            # we don't have a submission tag, so we need to find the commit
+            # that is the latest submission.
+            @check_files.each do |file|
+              date_commit = `git log -1 --format='%cI\n%H' '#{remote_ref}' -- '#{file}'`.strip
+              date = date_commit.lines.first
+              commit = date_commit.lines.last
 
-            next if date.nil?
-            date = Time.parse(date)
-            next if commit.nil?
+              next if date.nil?
+              date = Time.parse(date)
+              next if commit.nil?
 
-            # Do not count this submission, it it's part of the ignore commits
-            next if @ignored_commits.include? commit
+              # Do not count this submission, it it's part of the ignore commits
+              next if @ignored_commits.include? commit
 
-            if latest[:date].nil? then
-              latest[:date] = date
-              latest[:commit] = commit
-            elsif date > latest[:date] then
-              latest[:date] = date
-              latest[:commit] = commit
+              if latest[:date].nil? then
+                latest[:date] = date
+                latest[:commit] = commit
+              elsif date > latest[:date] then
+                latest[:date] = date
+                latest[:commit] = commit
+              end
             end
           end
           submission[:commit] = latest[:commit]
@@ -136,9 +147,8 @@ module TeachersPet
 
           # Check for push events for timely submission
           # Students may push after the deadline and claim it was one time.
-          if latest[:commit] then
+          if submission[:commit] && !@ignored_commits.include?(submission[:commit]) then
             # If we can't find a commit, then there's no point looking for a push.
-
             events =  self.client.repository_events(repo_name)
             found_commit_push = false
             events.each do |event|
@@ -151,7 +161,7 @@ module TeachersPet
                 if $?.success?
                   commits.each_line do |commit|
                     commit = commit.strip
-                    if latest[:commit] == commit then
+                    if submission[:commit] == commit then
                       found_commit_push = true;
                       break
                     end
@@ -164,7 +174,7 @@ module TeachersPet
                   commits = event[:payload][:commits]
                   commits.each do |commit|
                     commit = commit.to_hash
-                    if commit[:sha] == latest[:commit] then
+                    if commit[:sha] == submission[:commit] then
                       found_commit_push = true;
                       break
                     end
@@ -179,15 +189,14 @@ module TeachersPet
               end
             end
           end
-
           submission[:slip_days] = slip_days(submission[:committed_at], submission[:pushed_at])
 
           # If the user submitted, push a tag
-          if @tag_submission and ( (@check_submit and submission[:submitted] and submission[:commit]) or (!@check_submit and !@check_files.empty?) ) then
+          if @tag_submission and !submit_tag_hash and ( (@check_submit and submission[:submitted] and submission[:commit]) or (!@check_submit and !@check_files.empty?) ) then
             ref = submission[:commit]
             ref = remote_ref if ref.nil?
-            if system('git', 'tag', submit_tag, ref, out: File::NULL, err: File::NULL) then
-              system('git', 'push', remote, "#{submit_tag}:#{@tag_submission}", out: File::NULL, err: File::NULL)
+            if system('git', 'tag', submit_tag, ref) then
+              system('git', 'push', remote, "#{submit_tag}:#{@tag_submission}")
             end
           end
         end
@@ -206,7 +215,7 @@ module TeachersPet
           date = pushed_at
         end
 
-        days_late = nil
+        days_late = 0
         if date then
           diff = date - @deadline
           days = diff / (60*60*24)
