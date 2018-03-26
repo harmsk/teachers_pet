@@ -74,7 +74,7 @@ module TeachersPet
           @submissions[remote] = submission
           repo_name = "#{@organization}/#{remote}-#{@repository}"
           remote_ref = "#{remote}/master"
-          submit_tag = "remotes/#{remote}/#{@tag_submission}"
+          submit_tag = "refs/tags/remotes/#{remote}/#{@tag_submission}"
 
           # Fetch the latest changes
           # TODO: fetch automatically if using submit_tag
