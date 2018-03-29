@@ -21,8 +21,9 @@ module TeachersPet
           if team
             puts "Team @#{org_login}/#{team_name} already exists."
           else
-            team = JSON.parse(self.client.create_team(org_login, team_name))
-            team.symbolize_keys!
+            self.client.create_team(org_login, team_name)
+            teams_by_name = self.client.existing_teams_by_name(org_login)
+            team = teams_by_name[team_name]
           end
           self.client.add_users_to_team(org_login, team, usernames)
         end
