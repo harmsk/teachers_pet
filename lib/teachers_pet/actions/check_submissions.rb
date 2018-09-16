@@ -32,6 +32,7 @@ module TeachersPet
         @tag_submission = self.options[:push_submission_tag]
 
         @ignored_commits = self.options[:ignore_commits]
+        @ignored_commits = Array.new if @ignore_commits.nil?
         @ignored_students = self.options[:ignore_students]
       end
 
