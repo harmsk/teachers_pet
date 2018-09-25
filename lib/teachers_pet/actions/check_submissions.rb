@@ -32,7 +32,7 @@ module TeachersPet
         @tag_submission = self.options[:push_submission_tag]
 
         @ignored_commits = self.options[:ignore_commits]
-        @ignored_commits = Array.new if @ignore_commits.nil?
+        @ignored_commits = Array.new if @ignored_commits.nil?
         @ignored_students = self.options[:ignore_students]
       end
 
@@ -101,7 +101,14 @@ module TeachersPet
           # Check if the submission file exists
           if @submit_file then
             submitted = system('git', 'cat-file', '-e', "#{remote_ref}:#{@submit_file}", out: File::NULL, err: File::NULL)
-            submission[:submitted] = submitted
+            if submitted then
+              submit_hash = `git log -1 --format='%H' '#{remote_ref}' -- '#{@submit_file}'`.strip
+              if @ignored_commits.include? submit_hash then
+                submitted = false
+              else
+                submission[:submitted] = submitted
+              end
+            end
           end
 
           # Check if the submission tag exists
