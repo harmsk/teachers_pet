@@ -4,6 +4,7 @@ module TeachersPet
       def read_info
         @repository = self.options[:repository]
         @organization = self.options[:organization]
+        @branch = self.options[:branch]
         @sshEndpoint = self.options[:ssh]
       end
 
@@ -48,7 +49,7 @@ module TeachersPet
           if system('git', 'remote', 'add', remote, remotes_to_add[remote]) then
             system('git', 'config', '--add', "remote.#{remote}.fetch", "+refs/tags/*:refs/tags/remotes/#{remote}/*")
           end
-          system('git', 'push', remote, 'master')
+          system('git', 'push', remote, @branch)
         end
       end
 
