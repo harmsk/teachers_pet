@@ -21,6 +21,22 @@ module TeachersPet
         @submit_tag = self.options[:submit_tag]
         @check_submit = (@submit_file or @submit_tag)
 
+        # load module to check submit file
+        @submit_file_plugin = self.options[:submit_file_plugin]
+        if @submit_file_plugin then
+          abort("submit-file required for plugin use.") unless @submit_file
+
+          @submit_file_plugin = File.absolute_path(@submit_file_plugin)
+          require_relative File.join('..', 'submit_file')
+          require @submit_file_plugin
+
+          @submit_file_plugins = []
+          TeachersPet::SubmitFile.descendants.each do |c|
+            @submit_file_plugins.push c.new
+          end
+          abort("failed to load plugin") if @submit_file_plugins.empty?
+        end
+
         if @submit_file and !(@check_files.include? @submit_file) then
           @check_files.push @submit_file
         end
@@ -105,6 +121,12 @@ module TeachersPet
               submit_hash = `git log -1 --format='%H' '#{remote_ref}' -- '#{@submit_file}'`.strip
               if @ignored_commits.include? submit_hash then
                 submitted = false
+              elsif !@submit_file_plugins.empty?
+                submit_file_contents = `git show '#{remote_ref}':'#{@submit_file}'`.strip
+                @submit_file_plugins.each do |plugin|
+                  submitted &&= plugin.verify submit_file_contents
+                end
+                submission[:submitted] = submitted
               else
                 submission[:submitted] = submitted
               end

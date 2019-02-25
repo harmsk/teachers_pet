@@ -6,6 +6,7 @@ module TeachersPet
     option :deadline, required: true, banner: 'DATE', desc: "Deadline for the submission: MM/DD/YYYY HH:MM"
     option :report, required: true, banner: 'FILE', desc: "CSV file to write the submission deadlines to."
     option :submit_file, banner: 'FILE', desc: "If file exists, then the assignment was submitted."
+    option :submit_file_plugin, banner: 'FILE', desc: "Load SubmitFile plugin to verify submit file."
     # TODO: submit-tag support
     # option :submit_tag, banner: 'TAG', desc: "If tag exists, then the assignment was submitted."
     option :ignore_commits, type: :array, banner: 'COMMITs', desc: "Ignored COMMITs."
