@@ -3,6 +3,7 @@ module TeachersPet
     option :organization, required: true
     option :repository, required: true
     option :branch, default: 'master', desc: "branch to push"
+    option :disable_force_push, type: :boolean, desc: "disable force push to branch"
 
     students_option
     common_options
