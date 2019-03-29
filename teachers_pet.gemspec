@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'activesupport', '~> 4.0'
   # for team membership API
   # https://developer.github.com/changes/2014-08-05-team-memberships-api/
-  s.add_dependency 'octokit', '~> 3.3'
+  s.add_dependency 'octokit', '~> 4.0'
   s.add_dependency 'require_all', '~> 1.3.2'
   s.add_dependency 'thor', '~> 0.19.1'
 
