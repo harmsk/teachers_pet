@@ -5,6 +5,7 @@ module TeachersPet
         @repository = self.options[:repository]
         @organization = self.options[:organization]
         @public_repos = self.options[:public]
+        @permission = self.options[:permission]
       end
 
       def load_files
@@ -33,20 +34,28 @@ module TeachersPet
           repo_name = "#{student}-#{@repository}"
 
           if self.client.repository?(@organization, repo_name)
-            puts " --> Already exists, skipping '#{repo_name}'"
-            next
+            puts " --> Already exists, skipping creation '#{repo_name}'"
+          else
+            puts " --> Creating '#{repo_name}' public? #{@public_repos}"
+            self.client.create_repository(repo_name,
+              description: "#{@repository} created for #{student}",
+              private: !@public_repos,
+              has_issues: true,
+              has_wiki: false,
+              has_downloads: false,
+              organization: @organization,
+              team_id: org_teams[student][:id]
+            )
           end
 
-          puts " --> Creating '#{repo_name}' public? #{@public_repos}"
-          self.client.create_repository(repo_name,
-            description: "#{@repository} created for #{student}",
-            private: !@public_repos,
-            has_issues: true,
-            has_wiki: false,
-            has_downloads: false,
-            organization: @organization,
-            team_id: org_teams[student][:id]
-          )
+          unless @permission.nil? then
+            puts " --> setting '#{student}' permissions to '#{@permission}'"
+            repo = @organization + '/' + repo_name
+            unless self.client.add_team_repository(org_teams[student][:id], repo, permission: @permission)
+              abort " ** ERROR ** - Failed to set permissions to '#{repo}'"
+            end
+          end
+
         end
       end
 
