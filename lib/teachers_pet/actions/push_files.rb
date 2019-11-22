@@ -57,6 +57,7 @@ module TeachersPet
           system('git', 'push', remote, @branch)
 
           unless @disable_force_push.nil? then
+            puts " --> disabling force push #{repositories[remote]}/#{@branch}"
             self.client.protect_branch(repositories[remote], @branch,
               required_status_checks: { strict: @disable_force_push, contexts: []},
               enforce_admins: false,
