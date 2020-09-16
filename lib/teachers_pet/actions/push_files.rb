@@ -52,7 +52,7 @@ module TeachersPet
         remotes_to_add.keys.each do |remote|
           puts "#{remote} --> #{remotes_to_add[remote]}"
           if system('git', 'remote', 'add', remote, remotes_to_add[remote]) then
-            system('git', 'config', '--add', "remote.#{remote}.fetch", "+refs/tags/*:refs/tags/remotes/#{remote}/*")
+            system('git', 'config', '--add', "remote.#{remote}.fetch", "+refs/tags/*:refs/tags/#{remote}/*")
           end
           system('git', 'push', remote, @branch)
 
