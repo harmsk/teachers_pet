@@ -17,6 +17,7 @@ module TeachersPet
 
     def self.students_option
       option :students, default: TeachersPet::Configuration.studentsFile, banner: 'PATH', desc: "The path to the file containing the list of students"
+      option :exclude_students, banner: 'PATH', desc: "The path to the file containing the list of students to exclude"
     end
   end
 end

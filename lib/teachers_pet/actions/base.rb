@@ -82,7 +82,18 @@ module TeachersPet
       def read_students_file
         student_file = self.options[:students]
         puts "Loading students:"
-        read_file(student_file)
+        students = read_file(student_file)
+
+        excluded_file = self.options[:exclude_students]
+        if excluded_file then
+          puts "Loading excluded students:"
+          excluded = read_file(excluded_file)
+          excluded.keys.each do |key|
+            students.delete(key)
+          end
+        end
+
+        students
       end
 
       def read_members_file
