@@ -15,14 +15,13 @@ module TeachersPet
       end
 
       def load_files
+        self.init_client
         @students = self.read_students_file
         @issue[:body] = File.open(@issue_file).read
       end
 
       def create
         # confirm("Create issue '#{@issue[:title]}' in #{@students.keys.size} student repositories - '#{@repository}'?")
-        self.init_client
-
         org_hash = self.client.organization(@organization)
         abort('Organization could not be found') if org_hash.nil?
         puts "Found organization at: #{org_hash[:login]}"

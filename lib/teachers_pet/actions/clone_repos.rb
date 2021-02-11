@@ -7,6 +7,7 @@ module TeachersPet
       end
 
       def load_files
+        self.init_client
         @students = self.read_students_file
       end
 
@@ -18,8 +19,6 @@ module TeachersPet
         cloneMethod = self.get_clone_method
 
         # create a repo for each student
-        self.init_client
-
         org_hash = self.client.organization(@organization)
         abort('Organization could not be found') if org_hash.nil?
         puts "Found organization at: #{org_hash[:url]}"

@@ -60,23 +60,48 @@ module TeachersPet
             abort("No users can be named 'owners' (in any case)") if 'owners'.eql?(item.downcase)
           end
 
-          if map[items[0]].nil?
-            map[items[0]] = Array.new
-            puts " -> #{items[0]}"
+          # If this is a user, is the username valid?
+          name = items[0]
+          if (items.size == 1)
+            user = validate_user(name)
+          end
+
+          if map[name].nil?
+            puts " -> #{name}"
+
             if (items.size > 1)
+              map[name] = Array.new
               print "  \\-> members: "
               1.upto(items.size - 1) do |i|
-                print "#{items[i]} "
-                map[items[0]] << items[i]
+                current = items[i]
+                user = validate_user(current)
+                if user
+                  print "#{items[i]} "
+                  map[name] << items[i]
+                else
+                  $stderr.puts "    \\ -> warning: no such user, #{current}. skipping."
+                end
               end
               print "\n"
             else
-              map[items[0]] << items[0]
+              if user
+                map[name] = [user[:login]]
+              else
+                $stderr.puts "  \\ -> warning: no such user, #{name}. skipping."
+              end
             end
+          else
+            $stderr.puts " \\ -> warning: ignoring duplicate user/team, #{name}. skipping."
           end
         end
 
         map
+      end
+
+      def validate_user(username)
+        self.client.user(username)
+      rescue Octokit::NotFound
+        nil
       end
 
       def read_students_file

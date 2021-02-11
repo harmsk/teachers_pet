@@ -14,8 +14,8 @@ module TeachersPet
 
       def run
         self.read_info
-        self.load_files
         self.init_client
+        self.load_files
 
         org_hash = self.client.organization(@organization)
         abort('Organization could not be found') if org_hash.nil?
