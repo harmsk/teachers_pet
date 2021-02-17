@@ -8,10 +8,12 @@ module TeachersPet
         super(opts)
         @check_files = check_files
 
-        @students = self.read_students_file
-
         @repository = self.options[:repository]
         @organization = self.options[:organization]
+
+        self.init_client
+        @students = self.read_students_file
+
         @deadline = Time.parse(self.options[:deadline])
         @report_filename = self.options[:report]
 
@@ -53,8 +55,6 @@ module TeachersPet
       end
 
       def check_submissions
-        self.init_client
-
         org_hash = self.client.organization(@organization)
         abort('Organization could not be found') if org_hash.nil?
         puts "Found organization at: #{org_hash[:url]}"
