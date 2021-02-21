@@ -2,7 +2,7 @@ require 'csv'
 
 module TeachersPet
   module Actions
-    class CheckSubmissions < Base
+    class CollectSubmissions < Base
 
       def initialize(check_files, opts={})
         super(opts)
@@ -54,7 +54,7 @@ module TeachersPet
         @ignored_students = self.options[:ignore_students]
       end
 
-      def check_submissions
+      def collect_submissions
         org_hash = self.client.organization(@organization)
         abort('Organization could not be found') if org_hash.nil?
         puts "Found organization at: #{org_hash[:url]}"
@@ -273,7 +273,7 @@ module TeachersPet
       end
 
       def run
-        self.check_submissions
+        self.collect_submissions
         self.write_report
       end
     end

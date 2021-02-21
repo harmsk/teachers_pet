@@ -18,9 +18,9 @@ module TeachersPet
     students_option
     common_options
 
-    desc 'check_submissions', "Check the student repositories for timely submission."
-    def check_submissions(*check_files)
-      TeachersPet::Actions::CheckSubmissions.new(check_files, options).run
+    desc 'collect_submissions', "Check the student repositories for timely submission."
+    def collect_submissions(*check_files)
+      TeachersPet::Actions::CollectSubmissions.new(check_files, options).run
     end
   end
 end
