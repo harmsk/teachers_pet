@@ -5,10 +5,7 @@ module TeachersPet
 
     option :deadline, required: true, banner: 'DATE', desc: "Deadline for the submission: MM/DD/YYYY HH:MM"
     option :report, required: true, banner: 'FILE', desc: "CSV file to write the submission deadlines to."
-    option :submit_file, banner: 'FILE', desc: "If file exists, then the assignment was submitted."
-    option :submit_file_plugin, banner: 'FILE', desc: "Load SubmitFile plugin to verify submit file."
-    # TODO: submit-tag support
-    # option :submit_tag, banner: 'TAG', desc: "If tag exists, then the assignment was submitted."
+    option :submit_csv, banner: 'FILE', desc: "CSV file with team name (first column) and commit hash (second column)."
     option :ignore_commits, type: :array, banner: 'COMMITs', desc: "Ignored COMMITs."
     option :fetch, desc: "Fetch the latest from each student's repository."
     option :push_submission_tag, banner: 'TAG', desc: "For each repository, create a tag and push it to the student's repository."
@@ -19,8 +16,8 @@ module TeachersPet
     common_options
 
     desc 'collect_submissions', "Check the student repositories for timely submission."
-    def collect_submissions(*check_files)
-      TeachersPet::Actions::CollectSubmissions.new(check_files, options).run
+    def collect_submissions
+      TeachersPet::Actions::CollectSubmissions.new(options).run
     end
   end
 end

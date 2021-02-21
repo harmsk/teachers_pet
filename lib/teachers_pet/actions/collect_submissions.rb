@@ -4,9 +4,8 @@ module TeachersPet
   module Actions
     class CollectSubmissions < Base
 
-      def initialize(check_files, opts={})
+      def initialize(opts={})
         super(opts)
-        @check_files = check_files
 
         @repository = self.options[:repository]
         @organization = self.options[:organization]
@@ -16,35 +15,15 @@ module TeachersPet
 
         @deadline = Time.parse(self.options[:deadline])
         @report_filename = self.options[:report]
-
         @validate_teams = self.options[:team_validation]
 
-        @submit_file = self.options[:submit_file]
-        @submit_tag = self.options[:submit_tag]
-        @check_submit = (@submit_file or @submit_tag)
-
-        # load module to check submit file
-        @submit_file_plugin = self.options[:submit_file_plugin]
-        if @submit_file_plugin then
-          abort("submit-file required for plugin use.") unless @submit_file
-
-          @submit_file_plugin = File.absolute_path(@submit_file_plugin)
-          require_relative File.join('..', 'submit_file')
-          require @submit_file_plugin
-
-          @submit_file_plugins = []
-          TeachersPet::SubmitFile.descendants.each do |c|
-            @submit_file_plugins.push c.new
+        @submit_csv = self.options[:submit_csv]
+        if @submit_csv then
+          csv = CSV.read(@submit_csv)
+          @submission_hashes = Hash.new
+          csv.each do |row|
+            @submission_hashes[row[0]] = row[1]
           end
-          abort("failed to load plugin") if @submit_file_plugins.empty?
-        end
-
-        if @submit_file and !(@check_files.include? @submit_file) then
-          @check_files.push @submit_file
-        end
-        @check_files = @check_files.uniq
-        if @check_files.empty? then
-          @check_files.push '.'
         end
 
         @tag_submission = self.options[:push_submission_tag]
@@ -68,7 +47,15 @@ module TeachersPet
         remotes = Array.new
         @students.keys.sort.each do |student|
           if @ignore_students then
-            next if @ignore_students.include? student
+            if @ignore_students.include? student then
+              $stderr.puts " skipping #{student}"
+              next
+            end
+          end
+
+          unless @submission_hashes.key? student then
+            $stderr.puts " skipping #{student}"
+            next
           end
 
           if @validate_teams
@@ -85,58 +72,34 @@ module TeachersPet
           remotes.push student
         end
 
+        puts "Colling submissions:"
         @submissions = Hash.new
         remotes.each do |remote|
+          puts " -> #{remote}"
+
           submission = Hash.new
           @submissions[remote] = submission
           repo_name = "#{@organization}/#{remote}-#{@repository}"
           remote_ref = "#{remote}/master"
           submit_tag = "#{remote}/#{@tag_submission}"
 
+          # Get the hash of the submission tag
+          if @tag_submission then
+            unless `git tag -l #{submit_tag}`.strip.empty? then
+              submit_tag_hash = `git log -1 --format='%H' '#{submit_tag}' --`.strip
+            end
+          end
+
           # Fetch the latest changes
-          # TODO: fetch automatically if using submit_tag
           if self.options[:fetch] then
-            # Get the hash of the submission tag
-            if @tag_submission then
-              unless `git tag -l #{submit_tag}`.strip.empty? then
-                submit_tag_hash = `git log -1 --format='%H' '#{submit_tag}' --`.strip
-              end
-            end
             system('git', 'fetch', '--no-tags', '--prune', remote)
-
-            # Check if the student tried to change the submission tag
-            if submit_tag_hash then
-              hash_check = `git log -1 --format='%H' '#{submit_tag}' -- 2>/dev/null`.strip
-              if submit_tag_hash != hash_check then
-                submit_tag_hash = hash_check
-                submission[:rewrite_history] = "WARNING: #{remote} #{@tag_submission} changed #{submit_tag_hash} => #{hash_check}"
-              end
-            end
           end
 
-          # Check if the submission file exists
-          if @submit_file then
-            submitted = system('git', 'cat-file', '-e', "#{remote_ref}:#{@submit_file}", out: File::NULL, err: File::NULL)
-            if submitted then
-              submit_hash = `git log -1 --format='%H' '#{remote_ref}' -- '#{@submit_file}'`.strip
-              if @ignored_commits.include? submit_hash then
-                submitted = false
-              elsif !@submit_file_plugins.empty?
-                submit_file_contents = `git show '#{remote_ref}':'#{@submit_file}'`.strip
-                @submit_file_plugins.each do |plugin|
-                  submitted &&= plugin.verify submit_file_contents
-                end
-                submission[:submitted] = submitted
-              else
-                submission[:submitted] = submitted
-              end
-            end
-          end
-
-          # Check if the submission tag exists
-          if @submit_tag then
-            # TODO: build support for submit tag
-            raise "TODO: not yet implemented."
+          commits = Array.new
+          commit_log = `git log --format='%cI, %H' '#{remote_ref}'`.strip
+          commit_log.each_line do |line|
+            values = line.split(', ')
+            commits.push( {:hash => values[1].strip, :date => Time.parse(values[0].strip)} )
           end
 
           # Check if there were commits for required submission files
@@ -148,29 +111,31 @@ module TeachersPet
               date = `git log -1 --format='%cI' '#{submit_tag_hash}'`.strip
               latest[:date] = Time.parse(date)
             end
+          elsif @submission_hashes.key? remote
+            submit_hash = @submission_hashes[remote]
+            found_hash = false
+            commits.each do |commit|
+              if commit[:hash] == submit_hash then
+                found_hash = true
+                latest[:date] = commit[:date]
+                latest[:commit] = commit[:hash]
+                break
+              end
+            end
+            $stderr.puts "warning: unable to locate submission hash #{submit_hash} for #{remote}" unless found_hash
           else
             # we don't have a submission tag, so we need to find the commit
             # that is the latest submission.
-            @check_files.each do |file|
-              date_commit = `git log -1 --format='%cI\n%H' '#{remote_ref}' -- '#{file}'`.strip
-              date = date_commit.lines.first
-              commit = date_commit.lines.last
+            next if commit.first.nil?
 
-              next if date.nil?
-              date = Time.parse(date)
-              next if commit.nil?
+            date = commits.first[:date]
+            commit = commit.first[:hash]
 
-              # Do not count this submission, it it's part of the ignore commits
-              next if @ignored_commits.include? commit
+            # Do not count this submission, it it's part of the ignore commits
+            next if @ignored_commits.include? commit
 
-              if latest[:date].nil? then
-                latest[:date] = date
-                latest[:commit] = commit
-              elsif date > latest[:date] then
-                latest[:date] = date
-                latest[:commit] = commit
-              end
-            end
+            latest[:date] = date
+            latest[:commit] = commit
           end
           submission[:commit] = latest[:commit]
           submission[:committed_at] = latest[:date]
@@ -187,9 +152,9 @@ module TeachersPet
                 before = event[:payload][:before]
                 head = event[:payload][:head]
 
-                commits = `git log --format='%H' #{before}..#{head} 2>&1`.strip
+                hashes = `git log --format='%H' #{before}..#{head} 2>&1`.strip
                 if $?.success?
-                  commits.each_line do |commit|
+                  hashes.each_line do |commit|
                     commit = commit.strip
                     if submission[:commit] == commit then
                       found_commit_push = true;
@@ -198,11 +163,11 @@ module TeachersPet
                   end
                 else
                   # looks like the student modified the history...
-                  submission[:rewrite_history] = commits
+                  submission[:rewrite_history] = hashes
 
                   # let's try to find the commit in what GitHub gives us...
-                  commits = event[:payload][:commits]
-                  commits.each do |commit|
+                  hashes = event[:payload][:commits]
+                  hashes.each do |commit|
                     commit = commit.to_hash
                     if commit[:sha] == submission[:commit] then
                       found_commit_push = true;
@@ -222,9 +187,14 @@ module TeachersPet
           submission[:slip_days] = slip_days(submission[:committed_at], submission[:pushed_at])
 
           # If the user submitted, push a tag
-          if @tag_submission and !submit_tag_hash and ( (@check_submit and submission[:submitted] and submission[:commit]) or (!@check_submit and !@check_files.empty?) ) then
+          if submission[:commit].nil? then
+            $stderr.puts "  \\ warning: no submission, ignoring: #{remote}"
+          elsif submit_tag_hash then
+            $stderr.puts "  \\ warning: submission tag exists, ignoring: #{remote} (#{submit_tag_hash})"
+          elsif @tag_submission and !submit_tag_hash and submission[:commit] then
             ref = submission[:commit]
             ref = remote_ref if ref.nil?
+            puts "  \\ tagging submission #{remote} (#{ref})"
             if system('git', 'tag', submit_tag, ref) then
               system('git', 'push', remote, "#{submit_tag}:#{@tag_submission}")
             end
