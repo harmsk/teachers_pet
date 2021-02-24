@@ -3,7 +3,6 @@ module TeachersPet
     option :organization, required: true
     option :repository, required: true
 
-    option :deadline, required: true, banner: 'DATE', desc: "Deadline for the submission: MM/DD/YYYY HH:MM"
     option :report, required: true, banner: 'FILE', desc: "CSV file to write the submission deadlines to."
     option :submit_csv, banner: 'FILE', desc: "CSV file with team name (first column) and commit hash (second column)."
     option :ignore_commits, type: :array, banner: 'COMMITs', desc: "Ignored COMMITs."

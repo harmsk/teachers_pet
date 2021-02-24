@@ -13,7 +13,6 @@ module TeachersPet
         self.init_client
         @students = self.read_students_file
 
-        @deadline = Time.parse(self.options[:deadline])
         @report_filename = self.options[:report]
         @validate_teams = self.options[:team_validation]
 
@@ -184,7 +183,6 @@ module TeachersPet
               end
             end
           end
-          submission[:slip_days] = slip_days(submission[:committed_at], submission[:pushed_at])
 
           # If the user submitted, push a tag
           if submission[:commit].nil? then
@@ -207,37 +205,15 @@ module TeachersPet
         end
       end
 
-      def slip_days(committed_at, pushed_at)
-        if committed_at and !pushed_at then
-          # For some reason GitHub did not have a push event. Fall back to commit date
-          date = committed_at
-        else
-          date = pushed_at
-        end
-
-        days_late = 0
-        if date then
-          diff = date - @deadline
-          days = diff / (60*60*24)
-          if (days < 0) then
-            days = 0
-          else
-            days = days.ceil
-          end
-          days_late = days
-        end
-        days_late
-      end
-
       def write_report
         CSV.open(@report_filename, "wb") do |csv|
-          csv << ['remote', 'submitted', 'commit', 'committed_at', 'pushed_at', 'slip_days', 'rewrite_history']
+          csv << ['remote', 'submitted', 'commit', 'committed_at', 'pushed_at', 'rewrite_history']
           @submissions.each do |remote, submission|
             date = submission[:committed_at]
             date = date.strftime('%F %T') if date
             push = submission[:pushed_at]
             push = push.strftime('%F %T') if push
-            csv << [remote, submission[:submitted].to_s.upcase, submission[:commit], date, push, submission[:slip_days], submission[:rewrite_history]]
+            csv << [remote, submission[:submitted].to_s.upcase, submission[:commit], date, push, submission[:rewrite_history]]
           end
         end
       end
