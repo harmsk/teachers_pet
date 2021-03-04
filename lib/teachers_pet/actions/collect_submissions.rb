@@ -52,7 +52,7 @@ module TeachersPet
             end
           end
 
-          unless @submission_hashes.key? student then
+          if @submission_hashes && !@submission_hashes.key?(student) then
             $stderr.puts " skipping #{student}"
             next
           end
@@ -110,7 +110,7 @@ module TeachersPet
               date = `git log -1 --format='%cI' '#{submit_tag_hash}'`.strip
               latest[:date] = Time.parse(date)
             end
-          elsif @submission_hashes.key? remote
+          elsif @submission_hashes && @submission_hashes.key?(remote)
             submit_hash = @submission_hashes[remote]
             found_hash = false
             commits.each do |commit|
@@ -125,10 +125,10 @@ module TeachersPet
           else
             # we don't have a submission tag, so we need to find the commit
             # that is the latest submission.
-            next if commit.first.nil?
+            next if commits.first.nil?
 
             date = commits.first[:date]
-            commit = commit.first[:hash]
+            commit = commits.first[:hash]
 
             # Do not count this submission, it it's part of the ignore commits
             next if @ignored_commits.include? commit
